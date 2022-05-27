@@ -9,6 +9,7 @@
 
     <title>Vocal models</title>
     <meta property="og:title" content="Sentence Punctuation Tool">
+	<link rel="shortcut icon" href="{{url_for('static',filename='favicon.ico')}}"/>
     <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}"/>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
 	<style>
@@ -42,11 +43,12 @@
 			}
 			document.getElementById('fileInput').onchange = function () {
 			  //alert('Selected file: ' + this.value);
+			  recorded_audio = null;
 			  const audio_frame = document.getElementById("file_audio_player");
 			  const isHidden = audio_frame.style.display === "none";
 			  if (isHidden) {
 			  audio_frame.style.display="block";
-			  document.getElementById("recording_audio_player").style.display = "none";
+			  //document.getElementById("recording_audio_player").style.display = "none";
 			  }
 			  var file = this.files[0]
 			  fileURL = blob.createObjectURL(file);
@@ -59,67 +61,126 @@
 			var gumStream;
 			var rec;
 			var input;
+			var recorded_audio = null;
+			var record_animation = document.getElementById("recording");
 			document.getElementById("new_re").addEventListener("click",record);
 			function record(){
 				console.log('record button trigger');
-				var constraints = { audio: true, video: false};
-				navigator.mediaDevices.getUserMedia(constraints).then(function(stream) {
+				document.getElementById("fileInput").value = "";
+				if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+				console.log('getUserMedia supported.');
+				navigator.mediaDevices.getUserMedia({ audio: true, video: false}).then(function(stream) {
 				audioContext = new AudioContext();
 				gumStream = stream;
 				input = audioContext.createMediaStreamSource(stream);
 				rec = new Recorder(input,{numChannels:1});
 				
 				rec.record();
-				
-				setTimeout(stopRecording,3450);
+				record_animation.style.display = "inline";
+				setTimeout(stopRecording,3750);
+				}).catch(function(err) {
+				console.log('The following getUserMedia error occurred: ' + err);
 				});
+				}
 			}
 			function stopRecording(){
+				record_animation.style.display = "none";
 				rec.stop();
 				gumStream.getAudioTracks()[0].stop();
 				rec.exportWAV(createDownloadLink);
 			}
 			function createDownloadLink(blob){
+				recorded_audio = blob;
 				const audio_frame = document.getElementById("file_audio_player");
 				const isHidden = audio_frame.style.display === "none";
 				if (isHidden) {
 				audio_frame.style.display="block";
-				document.getElementById("recording_audio_player").style.display = "none";
+				//document.getElementById("recording_audio_player").style.display = "none";
 				}
 				var url = URL.createObjectURL(blob);
 				document.getElementById('audio_player').src = url;
-				var upload = document.createElement('a');
-				upload.href="#";
-				upload.innerHTML = "Upload_A";
-				upload.addEventListener("click",function(event){
-					var xhr = new XMLHttpRequest();
-					xhr.onload = function(e) {
-						if (this.readyState === 4) {
-							console.log("Server returned: ", e.target.responseText);
-						}
-					};
-					var fd = new FormData();
-					fd.append("audio_file",blob,new Date().toISOString()+".wav");
-					xhr.open("POST","/index",true);
-					xhr.send(fd);
-				});
-				test_box.appendChild(upload)
 			}
+			addEventListener("submit",(evt) => {
+				if (evt.target.method.toLowerCase() === "post"){
+				evt.preventDefault();
+				var choosenFile = document.getElementById("fileInput").value;
+				var checkbox_selected = document.querySelectorAll('input[type="checkbox"]:checked');
+				var checkbox_list = [];
+				for (var checkbox of checkbox_selected){
+					checkbox_list.push(checkbox.value);
+				}
+				console.log(checkbox_list);
+				var send_audio;
+				var filename;
+				if (choosenFile === "" && recorded_audio === null){
+				alert('You need to select a file.');
+				}
+				else if (checkbox_list.length == 0){
+				alert('You need to select a model to run.');
+				}
+				else{
+				if (choosenFile != ""){
+					var inputfile = document.getElementById("fileInput").files[0];
+					send_audio = inputfile;
+					filname = inputfile.name;
+				}
+				else if (recorded_audio != null){
+				send_audio = recorded_audio;
+				filename = "recorded_file.wav"
+				}
+				var fd = new FormData();
+				for (var i = 0; i < checkbox_list.length; i++){
+					fd.append("models_selection",checkbox_list[i]);
+				}
+				fd.append("audio_file",send_audio,filename);
+				for ( var par of fd.entries()){
+					console.log(par[0]+', '+par[1]);
+				}
+				var upload_animation = document.getElementById("uploading");
+				upload_animation.style.display = "inline";
+				fetch('/index',{
+				method: 'post',
+				body: fd
+				}).then((response) => {
+					if (response.status != 200){
+					console.log(response.status)
+					return;
+					}
+					response.json().then((data) => {
+						console.log(data);
+						upload_animation.style.display = "none";
+						for (var key in data){
+							var result_element = document.getElementById(key+'_result');
+							var result_text = document.getElementById(key+'_text');
+							result_text.innerHTML = data[key][1];
+							if (data[key][0] == ''){
+							result_element.style.display = "inline";
+							}else{
+							result_element.style.display = "none";
+							}
+							result_element.classList.remove("animate-bottom");
+							void result_element.offsetHeight;
+							result_element.classList.add("animate-bottom");
+						}
+						
+					})
+				}).catch((error) => {
+					console.log(error);
+				});
+				}
+			}
+			});
+			
         };
 
 </script>
 <div class="col-sm-1"></div>
 <div class="col-sm-10">
-<div class="container">
+<div class="container" style="position:relative;">
     <div class="row">
         <h1 id="headline">Hello Or,</h1>
     </div>
-	<!--<div id="test_box">
-	<button id="new_re" class="btn-primary">
-                    New_Record
-    </button>-->
-	</div>
-    <form action="/index" method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data">
 	<div class="row">
         <br>
 		<div class="box_border col-md-5">
@@ -153,28 +214,16 @@
 		<div class="col-md-7">
 		<div class="row">
 			<div id="test" class="col-md-1 col-md-offset-3">
-			   <button id="predict" type="submit" name="submit_button" value="rec" class="btn-primary" onclick="$('#recording').show()">
-							Record
+				<button type="button" id="new_re" class="btn-primary"> Record
 				</button>
 			</div>
 			<div class="col-md-1 col-md-offset-1">
 				<span>OR</span>
 			</div>
 			<div class="col-md-1 col-md-offset-1">
-				<input type="file" name="file" accept="audio/*" id="fileInput" onchange="clicker()">
+				<input type="file" name="file" accept="audio/*" id="fileInput">
 			</div>
 		  </div>
-	<div class="col" id="recording_audio_player" style="{{audio_record}}">
-	<br>
-	<div class="row">
-		<div class="col-md-5 col-md-offset-5">
-		 <p>Record Audio Player</p>
-		</div>
-		<div class="col-md-1 col-md-offset-4">
-		  <audio controls src="/wav/{{audio_file}}"></audio>
-		</div>
-	</div>
-  </div>
   
  <div id="file_audio_player" style="{{audio_player}}">
 	<br>
@@ -194,174 +243,52 @@
   </div>
  </div>
 </div>
-<div class="row" id="recording" style="display:none;">
-            <center>
-                <br>
-                <p>Recording...</p>
-            </center>
-        </div>
 
-        <div class="row" id="uploading" style="display:none;">
-            <center>
-                <br>
-                <p>Uploading...</p>
-            </center>
-        </div>
-		
+<div class="row" id="uploading" style="display:none;z-index:1;position:absolute;left:50%;">
+	<div style="width:150px;height:120px;background-color:white;box-shadow: 10px 10px 10px rgb(0,0,0,0.5);">
+	<center>
+	<p>Uploading...</p>
+	<div class="loader"></div>
+	</center>
+	</div>
+</div>
+<div class="row" id="recording" style="display:none;z-index:1;position:absolute;left:50%;">
+	<div style="width:150px;height:120px;background-color:white;box-shadow: 10px 10px 10px rgb(0,0,0,0.5);padding-top:30px;">
+	<center>
+	<p>Recording...</p>
+	<div class="record-dot"></div>
+	</center>
+	</div>
+</div>
 		<div class="row" style="{{results_hide}}">
             <br>
              <p id="subHead">Results for File: {{results}}</p>
 		</div>
-	<div class="row">
-		<div class="col-md-2" style="{{gender_model_hide}}">
+	<div id="result_container" class="row">
+		<div id="gender_result" class="col-md-2 animate-bottom" style="{{gender_model_hide}}">
             <p id="subHead">Gender Model:</p>
-			<p name="gender_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ gender_model }}</p>
+			<p id="gender_text" name="gender_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ gender_model }}</p>
 		</div>
-		<div class="col-md-2" style="{{age_model_hide}}">
+		<div id="age_result" class="col-md-2 animate-bottom" style="{{age_model_hide}}">
             <p id="subHead">Age Model:</p>
-			<p name="age_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ age_model }}</p>
+			<p id="age_text" name="age_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ age_model }}</p>
         </div>
 		
-		<div class="col-md-2" style="{{mood_model_hide}}">
+		<div id="mood_result" class="col-md-2 animate-bottom" style="{{mood_model_hide}}">
             <p id="subHead">Mood Model:</p>
-            <p name="mood_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ mood_model }}</p>
+            <p id="mood_text" name="mood_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ mood_model }}</p>
 		</div>
 		
-		<div class="col-md-3" style="{{accent_model_hide}}">
+		<div id="accent_result" class="col-md-3 animate-bottom" style="{{accent_model_hide}}">
             <p id="subHead">Accent Model:</p>
-			<p name="accent_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ accent_model }}</p>
+			<p id="accent_text" name="accent_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ accent_model }}</p>
 		</div>
-		<div class="col-md-3" style="{{language_model_hide}}">
+		<div id="language_identification_result" class="col-md-3 animate-bottom" style="{{language_model_hide}}">
             <p id="subHead">Language Identification Model:</p>
-            <p name="language_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ language_model }}</p>
+            <p id="language_identification_text" name="language_textbox" style="font-size: 14px; color: black;white-space: pre-line;">{{ language_model }}</p>
 		</div>
 	</div>
 </div>
-
-  <!--<div class="row">
-    <div class="col-md-1 col-md-offset-5">
-       <button id="predict" type="submit" name="submit_button" value="rec" class="btn-primary" onclick="$('#recording').show()">
-                    Record
-        </button>
-    </div>
-	<div class="col-md-1">
-		<span>OR</span>
-    </div>
-    <div class="col-md-1">
-		<input type="file" name="file" accept="audio/*" id="fileInput" onchange="clicker()">
-    </div>
-  </div>
-  <br>
-  
-	
-  <div id="recording_audio_player" style="{{audio_record}}">
-	<div class="row">
-		<div class="col-md-3 col-md-offset-5">
-		 <p style="margin-left: 20%;">Record Audio Player</p>
-		</div>
-		<div class="col-md-1 col-md-offset-5">
-		  <audio controls src="/wav/{{audio_file}}"></audio>
-		</div>
-	</div>
-  </div>
-  
- <div id="file_audio_player" style="{{audio_player}}">
-	<div class="row">
-		<div class="col-md-3 col-md-offset-5">
-		 <p style="margin-left: 20%;">Record Audio Player</p>
-		</div>
-		<div class="col-md-1 col-md-offset-5">
-		  <audio controls id="audio_player" name="audio_data"></audio>
-		</div>
-	</div>
-  </div>
-
-  <div class="row">
-  <div class="col-md-1 col-md-offset-6">
-   <button type="submit" name="submit_button" value="file" class="btn-primary" onclick="$('#uploading').show()">Submit</button>
-   </div>
-  </div>
-
-
-
-
-
-        <div id="recording" style="display:none;">
-            <center>
-                <br>
-                <p>Recording...</p>
-            </center>
-        </div>
-
-        <div id="uploading" style="display:none;">
-            <center>
-                <br>
-                <p>Uploading...</p>
-            </center>
-        </div>
-		
-       <div class="row" style="{{results_hide}}">
-            <br>
-             <p id="subHead">Results for File: {{results}}</p>
-		</div>
-
-		
-		<div class="row" style="{{gender_model_hide}}">
-            <br>
-			
-            <p id="subHead">Gender Model:</p>
-            <textarea name="gender_textbox" class="form-control txt_summary" rows="3" cols="5000" id="input_prediction" style="height:100px; overflow:hidden;"
-                      readonly>{{ gender_model }}</textarea>
-             <br>
-		</div>
-
-
-		
-		<div class="row" style="{{age_model_hide}}">
-            <br>
-			
-            <p id="subHead">Age Model:</p>
-            <textarea name="age_textbox" class="form-control txt_summary" rows="3" cols="5000" id="input_prediction" style="height:100px; overflow:hidden;"
-                      readonly>{{ age_model }}</textarea>
-		  <br>
-        </div>
-
-
-		
-		<div class="row" style="{{mood_model_hide}}">
-            <br>
-			
-            <p id="subHead">Mood Model:</p>
-            <textarea name="mood_textbox" class="form-control txt_summary" rows="3" cols="5000" id="input_prediction" style="height:100px; overflow:hidden;"
-                      readonly>{{ mood_model }}</textarea>
-            <br>
-		</div>
-
-
-		
-		<div class="row" style="{{accent_model_hide}}">
-            <br>
-			
-            <p id="subHead">Accent Model:</p>
-            <textarea name="accent_textbox" class="form-control txt_summary" rows="3" cols="5000" id="input_prediction" style="height:100px; overflow:hidden;"
-                      readonly>{{ accent_model }}</textarea>
-            <br>
-		</div>
-
-        
-		
-		<div class="row" style="{{language_model_hide}}">
-            <br>
-			
-            <p id="subHead">Language Identification Model:</p>
-            <textarea name="language_textbox" class="form-control txt_summary" rows="3" cols="1000" id="input_prediction" style="height:100px; overflow:hidden;"
-                      readonly>{{ language_model }}</textarea>
-			<br>
-		</div>
--->
-
-
-        <!--<button type="submit" name="submit_button" class="btn-primary" value="clean">Clear</button>-->
 
     </form>
 
