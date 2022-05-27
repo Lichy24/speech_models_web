@@ -1,72 +1,24 @@
-from locale import normalize
+import mimetypes
 import os
-#from pyexpat import model
-#from unicodedata import name
-from flask import Flask, render_template, request,Response,send_file,send_from_directory
-#from model.inference_orya_roi_gender import inf_rec, inf_upload
-#from model.inference_gender import inf_rec, inf_upload
-#from model.inference_age1 import inf_age
-from model.inference_dor_dolev import recording,inference,inf_mood,test
-#from model.age_inference import inf_age
+from flask import Flask, render_template, request,jsonify,make_response,send_from_directory
+from model.inference_dor_dolev import inf_mood
 from model.gender_inference import inf_gender
 from dadaNet import ConvNet
 from model.Dataset import Data
 from cnn_model_definition_gender import ConvNet_roi_orya
-#from Binary_Age_Model.model_definition_age import Convolutional_Neural_Network_Age
-#from model_definition_age import Convolutional_Neural_Network_Age
 from model.language_inference import Recording_language_classification as rec
 import torch
 from net_V2 import pred,accent_inferece,inf_pred
 from net import Convolutional_Speaker_Identification
 from pydub import AudioSegment
 from model.age_model_inf import inf_age
-import sounddevice
 import torchaudio
-#import tensorflow as tf
-from scipy.io.wavfile import write
-import random
-
-#import simpleaudio as sa
-
-#import wave
 import numpy as np
 
 
 app = Flask(__name__)
 
-""""
-            print('play')
-            uploaded_file = request.files['file']
-            if 'play_obj' in locals():
-                if play_obj.is_playing():
-                    print('stop playing')
-                    play_obj.stop()
-            else:
-                wave_obj = sa.WaveObject.from_wave_file(uploaded_file)
-                play_obj = wave_obj.play()
-                print('playing')
-            return render_template("index.html")
-
-@app.route("/wav")
-def streamwav():
-    def generate():
-        with open("recording.wav", "rb") as fwav:
-            data = fwav.read(1024)
-            while data:
-                yield data
-                data = fwav.read(1024)
-    return Response(generate(), mimetype="audio/x-wav")
-
-            wav = wave.open(uploaded_file.filename,'r')
-            filename = uploaded_file.filename
-            flag = False
-            if wav.getnchannels() > 1:
-                name, extension = os.path.splitext(filename)
-                filename = name+'_ch1'+extension
-                save_wav_channel(filename,wav,0)
-                flag = True
-            wav.close()
-"""
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def selected_models(request):
@@ -93,13 +45,13 @@ def Norm(X):
 
 
 def load_model(name):
-    model = torch.load(f"model/{name}", map_location=torch.device('cpu'))
+    model = torch.load(f"model/{name}", map_location=device)
     model.eval()
 
     return model
 
 def load_model_new(name):
-    model = torch.load(f"{name}", map_location=torch.device('cpu'))
+    model = torch.load(f"{name}", map_location=device)
     model.eval()
 
     return model
@@ -112,7 +64,7 @@ saved_model = {"gender":"model_gender_orya_roi.pth",\
 
 def load_state(name):
     model = Convolutional_Speaker_Identification()
-    model.load_state_dict(torch.load(name, map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load(name, map_location=device))
     model.eval()
 
     return model
@@ -136,49 +88,9 @@ def file_to_wav(filename):
 
 
 
-def record(filename):
-    sr = 16000
-    sec = 3
-    print("Recording")
 
-    rec = sounddevice.rec(int(sec * sr), samplerate=sr, channels=1)
-    sounddevice.wait()
-    write(filename + ".wav", sr, rec)
-    return "recorded"
-    #return send_to_models(filename + ".wav",selected_models)
-
-def split_wev(speech):
-    file_list = []
-    if len(speech[0]) > 48000:
-        speech = speech[0][44:]
-        splits = int(len(speech) / 47956)
-        speech = speech[None, :]
-        for j in range(splits):
-            file_list.append(speech[0][j * 47956:(j + 1) * 47956])
-    else:
-        print("file to small")
-    return file_list
 
 def load_wav(filename):
-    device = torch.device("cpu")
-    bundle = torchaudio.pipelines.WAV2VEC2_ASR_BASE_960H
-    wav_model = bundle.get_model().to(device)
-
-    waveform, sr = torchaudio.load(filename,normalize=True)#normalized here is good for most models
-    if sr != bundle.sample_rate:
-        waveform = torchaudio.functional.resample(waveform, sr, 16000)
-
-
-    clear = waveform[0][44:]
-    clear = clear[None, :]
-    clear = clear[0][:47956]
-    embedding, _ = wav_model(clear[None,:])
-
-    print(str(embedding.size()))
-    return embedding
-
-def load_wav_new(filename):
-    device = torch.device("cpu")
     bundle = torchaudio.pipelines.WAV2VEC2_ASR_BASE_960H
     wav_model = bundle.get_model().to(device)
 
@@ -188,9 +100,10 @@ def load_wav_new(filename):
 
 
     waveform = waveform[:1,:48000]
+    waveform.to(device)
     embedding, _ = wav_model(waveform)
 
-    print(str(embedding.size()))
+    #print(str(embedding.size()))
 
     return embedding
 
@@ -198,16 +111,14 @@ def send_to_models(filename,selected_models):
     if not selected_models:
         return "No Model has been selected."
     dict_res = {"gender":["display:none;",""],"age":["display:none;",""],"mood":["display:none;",""],"accent":["display:none;",""],"language_identification":["display:none;",""]}
-    #wav2vec_3 = load_wav(filename)
-    wav2vec_1 = load_wav_new(filename)
-    wav2vec_2 = load_wav_new(filename)
+    wav2vec_2 = load_wav(filename)
     wav2vec_2 = wav2vec_2.unsqueeze(0)
     wav2vec_2 = Norm(wav2vec_2)
 
     if "accent" in selected_models:
-        dict_res['accent'] = ["",inf_pred(accent_models,filename) + "\n"]
+        dict_res['accent'] = ["",inf_pred(accent_models,filename)]
     if "language_identification" in selected_models:
-        dict_res['language_identification'] = ["",rec.get_string_of_ans('model/'+saved_model["language_identification"],wav2vec_1) + "\n\n"]
+        dict_res['language_identification'] = ["",rec.get_string_of_ans('model/'+saved_model["language_identification"],filename) + "\n\n"]
     if "mood" in selected_models:
         dict_res['mood'] = ["",inf_mood(model_mood,wav2vec_2) + "\n\n"]
     if "gender" in selected_models:
@@ -220,13 +131,14 @@ def send_to_models(filename,selected_models):
 
 
 
-
-
-
-
 model_gender = load_model(saved_model["gender"])
 model_age = load_model(saved_model["age"])
 model_mood = load_model(saved_model["mood"])
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),'favicon.ico')
 
 
 @app.route('/')
@@ -235,83 +147,25 @@ def upload():
     gender_model_hide="display:none;",age_model_hide="display:none;",mood_model_hide="display:none;",
     accent_model_hide="display:none;",language_model_hide="display:none;",results_hide="display:none;",audio_player="display:none;")
 
-@app.route('/favicon.ico') 
-def favicon(): 
-    return send_from_directory(os.path.join(app.root_path, 'static'), 'favicon.ico', mimetype='image/vnd.microsoft.icon')
-
-@app.route('/index', methods=['POST', 'GET'])
+@app.route('/index', methods=['POST'])
 def send_text():
     if request.method == 'POST':
-        list_models_selected = get_list_models(request)
-        if "submit_button" in request.form:
-            
-            if request.form['submit_button'] == 'rec':
+        if "audio_file" in request.files:
+            print("Upload file")
+            uploaded_file = request.files['audio_file']
+            filename_to_play = uploaded_file.filename
+            uploaded_file.save(filename_to_play)
+            name, extension = os.path.splitext(filename_to_play)
+            if extension != '.wav':
+                filename_to_play = file_to_wav(filename_to_play)
+            dict_res = send_to_models(filename_to_play,selected_models(request))
+            os.remove(f'{uploaded_file.filename}')
+            if uploaded_file.filename != filename_to_play:
+                os.remove(f'{filename_to_play}')
+            return make_response(jsonify(dict_res),200)
 
-                filename_recording = request.remote_addr+"_recording_1"
-                if os.path.exists(request.remote_addr+"_recording_1.wav"):
-                    os.remove(request.remote_addr+"_recording_1.wav")
-                    filename_recording =request.remote_addr+"_recording_2"
-                elif os.path.exists(request.remote_addr+"_recording_2.wav"):
-                    os.remove(request.remote_addr+"_recording_2.wav")
-                result = render_template("index.html", pred=record(filename_recording),check_gender=list_models_selected['gender'],
-                                        check_age=list_models_selected['age'],check_mood=list_models_selected['mood'],
-                                        check_accent=list_models_selected['accent'],check_language_identification=list_models_selected['language_identification'],audio_record="",audio_player="display:none;",audio_file=filename_recording+".wav",
-                                        gender_model_hide="display:none;",age_model_hide="display:none;",mood_model_hide="display:none;",accent_model_hide="display:none;",language_model_hide="display:none;",results_hide="display:none;")
-                returnAudioFile(filename_recording+".wav")
-                return result
-            elif request.form['submit_button'] == 'file':
-                print("Upload file")
-                uploaded_file = request.files['file']
-                if uploaded_file.filename != '':
-                    filename_to_play = uploaded_file.filename
-                    uploaded_file.save(filename_to_play)
-                    name, extension = os.path.splitext(filename_to_play)
-                    if extension != '.wav':
-                        filename_to_play = file_to_wav(filename_to_play)
-                        os.remove(f'{uploaded_file.filename}')
-
-                else:
-                    if os.path.exists(request.remote_addr+"_recording_1.wav"):
-                        filename_to_play = request.remote_addr+"_recording_1.wav"
-                    else:
-                        filename_to_play = request.remote_addr+"_recording_2.wav"
-                dict_res = send_to_models(filename_to_play,selected_models(request))
-                result = render_template("index.html",
-                                        check_gender=list_models_selected['gender'],
-                                        check_age=list_models_selected['age'],check_mood=list_models_selected['mood'],
-                                        check_accent=list_models_selected['accent'],check_language_identification=list_models_selected['language_identification'],audio_record="display:none;",
-                                        gender_model_hide=dict_res['gender'][0],gender_model=dict_res['gender'][1],age_model_hide=dict_res['age'][0],age_model=dict_res['age'][1],mood_model_hide=dict_res['mood'][0],
-                                        mood_model=dict_res['mood'][1],accent_model_hide=dict_res['accent'][0],accent_model=dict_res['accent'][1],
-                                        language_model_hide=dict_res['language_identification'][0],language_model=dict_res['language_identification'][1],results_hide="",results=filename_to_play)
-                if uploaded_file.filename != '':
-                    os.remove(f'{filename_to_play}')
-
-                return result
-
-            elif request.form['submit_button'] == 'clean':
-                #get_list_models(request)
-                return render_template("index.html", pred="")
-                
-            elif request.form['submit_button'] == 'rec_new':
-                #get_list_models(request)
-                return render_template("index.html")
-        else:
-            print("error")
-            #return render_template("index.html", pred="error")
-            return "got post"
+        return make_response(jsonify({'error':'missing file.'}),500)
         
-
-        
-
-
-@app.route('/wav/<filename>')
-def returnAudioFile(filename):
-    return send_file(
-       filename, 
-       mimetype="audio/wav", 
-       as_attachment=True, 
-       attachment_filename=filename)
-
 
 def upload_file():
     print("file")
@@ -333,12 +187,4 @@ if __name__ == '__main__':
     #new age model
     """
 
-    app.run(debug=True)
-
-    #file_to_wav("M:\\audio files\\Accent\\de_german.mp3")
-    #load_wav("de_german.wav")
-    """
-    for i in range(1,10):
-        print(f'------{i}-----')
-        test(f'/home/adi/python/audio files/Mood/negative_0{i}.wav',model_mood)
-    """
+    app.run()
