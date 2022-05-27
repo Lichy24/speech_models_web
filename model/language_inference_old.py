@@ -1,9 +1,7 @@
 import torch
 import numpy as np
 from model.cnn_model_definition_language_identification import Convolutional_Language_Identification
-#from cnn_model_definition import Convolutional_Language_Identification
 import torchaudio
-
 
 NUM_LANGUAGE = 30
 SAMPLE_RATE = 16000
@@ -43,17 +41,11 @@ class Recording_language_classification:
             return normalized_res
 
     @classmethod
-    def _get_language_by_vector(cls, list_of_samples,model_path):
-        sum_of_results = [0] * NUM_LANGUAGE
-        num_samples = len(list_of_samples)
-        for sample in list_of_samples:
-            list_of_x = [sample]
-            x_stack = torch.stack(list_of_x)
-            list_of_current_results = cls._get_list_of_results(x_stack,model_path)
-            sum_of_results = [i + j for (i, j) in zip(list_of_current_results, sum_of_results)]
-
-        sum_of_results = [i/num_samples for i in sum_of_results]
-        top_k = cls._get_top_k_from_res(sum_of_results, 3)
+    def _get_language_by_vector(cls, sample,model_path):
+        list_of_x = [sample]
+        x_stack = torch.stack(list_of_x)
+        list_of_results = cls._get_list_of_results(x_stack,model_path)
+        top_k = cls._get_top_k_from_res(list_of_results, 3)
         res_relative_to_top_k = cls._get_res_relative_to_top_k(top_k)
         return top_k, res_relative_to_top_k
 
@@ -77,38 +69,21 @@ class Recording_language_classification:
 
     @classmethod
     def inference(cls,file_name):
-        waveform, sr = torchaudio.load(file_name)
+        waveform, sr = torchaudio.load(file_name, num_frames = SAMPLE_RATE*3)
     
         if sr != bundle.sample_rate:
             waveform = torchaudio.functional.resample(waveform, sr, bundle.sample_rate)
+
         waveform = waveform.to(device)
-        return  cls.getListOfWavFiles(waveform)
-        # waveform = waveform[:, :SAMPLE_RATE*3]
 
-        # return waveform
-
-    @classmethod
-    def getListOfWavFiles(cls, waveform):
-        window = 48000
-        step = 32000
-        arrayOfWaveForm = []
-        while waveform.shape[1] > window:
-            curr = waveform[:, :window]
-            arrayOfWaveForm.append(curr)
-            waveform = waveform[:, step:]
-        return arrayOfWaveForm
-
-
-
+        return waveform
     @classmethod   
-    def Norm(cls, X):
+    def Norm(cls,X):
         embedding = X.detach().cpu().numpy()
         for i in range(len(embedding)):
             mlist = embedding[0][i]
             embedding[0][i] = 2 * (mlist - np.max(mlist)) / (np.max(mlist) - np.min(mlist)) + 1
         return torch.from_numpy(embedding).to(device)
-
-
     @classmethod
     def split_wev(cls,speech):
         file_list = []
@@ -124,26 +99,21 @@ class Recording_language_classification:
 
     @classmethod
     def get_string_of_ans(cls, model_path,sample):
-        file_list = cls.inference(sample)
-        if len(file_list) < 1:
-            return 'ERROR: Invalid sample'
-        embedding_list = []
-        for tor in file_list:
-            embedding, _ = wav_model(tor)
-            embedding = cls.Norm(embedding)
-            embedding_list.append(embedding)
-
-        top_k, result_relative_to_top_k = cls._get_language_by_vector(embedding_list,model_path)
-
-
+        #tor = cls.inference(sample)
+        #embedding, _ = wav_model(tor)
+        #sample = cls.Norm(sample)
+        top_k, result_relative_to_top_k = cls._get_language_by_vector(sample,model_path)
         ans = {}
         for i in range(len(top_k)):
             ans[top_k[i][0]] = (top_k[i][1], result_relative_to_top_k[i][1])
         str_of_res = []
-        str_of_res.append("Language:".ljust(10) + " | Total:  |  For k:    ")
-        str_of_res.append("___________|_________|________")
+        str_of_res.append("Language:".ljust(10) + " | Total: |  For k:    ")
+        str_of_res.append("___________|________|_________")
         for k, v in ans.items():
-            str_of_res.append(f'{k.ljust(10)} : {str(round(v[0]*100,3)).ljust(6)}  |  {str(round(v[1]*100,3)).ljust(6)}')
+            str_of_res.append(f'{k.ljust(10)} : {round(v[0]*100,3)}  |  {round(v[1]*100,3)}')
 
         final_answer = "\n".join(str_of_res)
         return final_answer
+
+
+#print(Recording_language_classification.get_string_of_ans("/home/adi/python/DeepLearningSoundUI-master/recording.wav",'/home/adi/python/DeepLearningSoundUI-master/model/model_language_identification.pth'))
