@@ -1,7 +1,7 @@
 # Speech Models Website
 
 ## About The Project
-This project was created by a group of students from the university of ariel in course of Depp Learning Methods for NLP & Speech Analysis.
+This project was created by a group of students from the university of ariel in course of Deep Learning Methods for NLP & Speech Analysis.
 each pair of students had created a CNN model which can classifiy the audio.
 
 ## Install
