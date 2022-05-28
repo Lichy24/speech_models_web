@@ -19,11 +19,10 @@ each pair of students had created a CNN model which can classifiy the audio.
 - 3rd party tools:
   - ffmpeg (used by pydub the windows and linux have different installtion)
 - HTML:
- - JavaScript
- - CSS
- - Bootstrap
- - AJAX
-
+  - Javascript
+  - CSS
+  - Bootstrap
+  - AJAX
 ## How To Use
 Launch 'server.py' on root for relative paths to work.
 
