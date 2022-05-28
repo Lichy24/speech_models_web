@@ -1,4 +1,3 @@
-import mimetypes
 import os
 from flask import Flask, render_template, request,jsonify,make_response,send_from_directory
 from model.inference_dor_dolev import inf_mood
