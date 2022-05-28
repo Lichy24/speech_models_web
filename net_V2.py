@@ -16,7 +16,7 @@ def most_prob_voting(List):
 
 def split_wev(speech):
     file_list = []
-    print(len(speech[0]))
+    #print(len(speech[0]))
     if len(speech[0]) >= 48000:#48044
         speech = speech[0][44:]
         splits = int(len(speech) / 47956)
@@ -129,10 +129,10 @@ def predict_acc(wav2vec,res_dict,model):
         res_string += f'{res_dict[i]} = {torch.round(z, decimals=2) * 100} %,'
     res_string += ")"
     proba = int(torch.max(softmax) * 100)
-    print("model 1 is " + str(proba) + " % sure")
+    #print("model 1 is " + str(proba) + " % sure")
     res = res_dict[int(out)]
-    print(res)
-    print("--------")
+    #print(res)
+    #print("--------")
     if res not in frequents.keys():
         frequents[res] = 0
     if res == "zh-CN":
@@ -166,10 +166,10 @@ def predict_from_list(file_list, res_dict, model1):
         #np_result = np.array([result_list])
         np_result = softmax[0].detach().numpy()
         proba = int(torch.max(softmax) * 100)
-        print("model 1 is " + str(proba) + " % sure")
+        #print("model 1 is " + str(proba) + " % sure")
         res = res_dict[int(out)]
-        print(res)
-        print("--------")
+        #print(res)
+        #print("--------")
         if res not in frequents.keys():
             frequents[res] = 0
         if res == "zh-CN":
@@ -219,12 +219,12 @@ def inf_pred(model,file_name):
     speech_array, sampling_rate = torchaudio.load(file_name, normalize=True)
     transform = torchaudio.transforms.Resample(sampling_rate, 16_000)
     speech_array = transform(speech_array)
-    print(len(speech_array[0]))
+    #print(len(speech_array[0]))
     # if you want to record by yourself...
     # speech_array = record()
 
     files = split_wev(speech_array)
-    print(files)
+    #print(files)
     lan_model, result_dict = model['lan']
 
     selected_lan,prob_result = predict_from_list(files, result_dict, lan_model)
