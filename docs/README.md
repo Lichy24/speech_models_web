@@ -18,7 +18,7 @@ each pair of students had created a CNN model which can classifiy the audio.
   - pydub
 - 3rd party tools:
   - ffmpeg (used by pydub the windows and linux have different installtion)
-- HTML
+- HTML:
  - JavaScript
  - CSS
  - Bootstrap
