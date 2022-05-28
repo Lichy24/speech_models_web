@@ -18,6 +18,11 @@ each pair of students had created a CNN model which can classifiy the audio.
   - pydub
 - 3rd party tools:
   - ffmpeg (used by pydub the windows and linux have different installtion)
+- HTML
+ - JavaScript
+ - CSS
+ - Bootstrap
+ - AJAX
 
 ## How To Use
 Launch 'server.py' on root for relative paths to work.
@@ -30,9 +35,10 @@ In this example the user selects all the models and audio file to send to the se
 ![](browser.gif)
 ## Directory Structure
 ```
-└── project/       # Project's root directory.
-    ├── model/     # trained models and code to use them.
-    ├── static/    # images and css of the HTML
-    └── templates/ # HTML of website.
+└── project/              # Project's root directory.
+    ├── model/            # trained models and code to use them.
+    ├── static/           # images and css of the HTML
+    ├── templates/        # HTML of website.
+    └── train_scripts/    # code of the model for training.
 ```
 
