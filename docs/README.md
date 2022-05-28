@@ -23,10 +23,11 @@ each pair of students had created a CNN model which can classifiy the audio.
 Launch 'server.py' on root for relative paths to work.
 
 ### Example Of Server running
+![](start_server.gif)
 
 ### Example Of Client Browser
 In this example the user selects all the models and audio file to send to the server
-
+![](browser.gif)
 ## Directory Structure
 ```
 └── project/       # Project's root directory.
