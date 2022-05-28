@@ -1,11 +1,11 @@
-#Speech Models Website
+# Speech Models Website
 
-##About The Project
+## About The Project
 This project was created by a group of students from the university of ariel in course of Depp Learning Methods for NLP & Speech Analysis.
 each pair of students had created a CNN model which can classifiy the audio.
 
-##Install
-###Dependencies
+## Install
+### Dependencies
 - Platform:
   - OS: Linux or Windows
   - Version: Python 3.7.4+
@@ -19,12 +19,12 @@ each pair of students had created a CNN model which can classifiy the audio.
 - 3rd party tools:
   - ffmpeg (used by pydub the windows and linux have different installtion)
 
-##How To Use
+## How To Use
 Launch 'server.py' on root for relative paths to work.
 
-###Example Of Server running
+### Example Of Server running
 
-###Example Of Client Browser
+### Example Of Client Browser
 In this example the user selects all the models and audio file to send to the server
 
 ## Directory Structure
