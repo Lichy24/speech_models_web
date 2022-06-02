@@ -1,8 +1,14 @@
 # Speech Models Website
 
 ## About The Project
-This project was created by a group of students from the university of ariel in course of Deep Learning Methods for NLP & Speech Analysis.
-each pair of students had created a CNN model which can classifiy the audio.
+This project was created by a group of students from Ariel University in the course Deep Learning Methods for NLP & Speech Analysis.
+each pair of students had created a CNN model which can classify the audio.
+
+##Github
+- https://github.com/Orya-s/DeepLearningSound
+- https://github.com/DorAzaria/Voice-Emotion-Recognition
+- https://github.com/ortrsa/Voice-Accent-classification
+- https://github.com/shlomog12/Spoken_language_identification
 
 ## Install
 ### Dependencies
